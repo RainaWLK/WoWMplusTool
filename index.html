@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta http-equiv="Content-type" content="text/html; charset=utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+    <title>RL無用小工具</title>
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.10.16/css/jquery.dataTables.min.css" />
+    <link rel="stylesheet" href="https://cdn.datatables.net/responsive/2.2.3/css/responsive.dataTables.min.css" />
+    <style type="text/css">
+    footer {
+        text-align: center;
+        font-size: 15px;
+        position: absolute;
+        height: 50px;
+        width: 95vw;
+    }
+     .title {
+        text-align: center;
+        font-size: 50px;
+        margin-bottom: 20px;
+        font-family: Tahoma;
+        width: 95vw;
+    }
+    </style>
+</head>
+
+<body>
+    <h1 class="title" id="title">RL無用小工具</h1>
+    <footer>Designed By 馬神-冰霜之刺</footer>
+    <table id="tb" class="display" style="width: 98vw">
+        <thead>
+            <tr>
+                <th></th>
+                <th>Name</th>
+                <th>iLv</th>
+                <th>Last</th>
+            </tr>
+        </thead>
+    </table>
+    <script type="text/javascript" src="https://code.jquery.com/jquery-3.3.1.js"></script>
+    <script type="text/javascript" src="https://cdn.datatables.net/1.10.19/js/jquery.dataTables.min.js"></script>
+    <script type="text/javascript" src="https://cdn.datatables.net/responsive/2.2.3/js/dataTables.responsive.min.js"></script>
+    <script type="text/javascript" src="http://malsup.github.io/jquery.blockUI.js"></script>
+    <script type="text/javascript">
+    var searchpara = 'gear,guild,mythic_plus_recent_runs';
+    var Dungeons = [
+        { name: "Atal'dazar", mapping: '阿塔達薩' },
+        { name: "Freehold", mapping: '自由港' },
+        { name: "Kings' Rest", mapping: '諸王之眠' },
+        { name: "Shrine of the Storm", mapping: '風暴聖壇' },
+        { name: "Siege of Boralus", mapping: '波拉勒斯圍成戰' },
+        { name: "Temple of Sethraliss", mapping: '瑟沙利斯神廟' },
+        { name: "The MOTHERLODE!!", mapping: '晶喜鎮!!' },
+        { name: "The Underrot", mapping: '幽腐深窟' },
+        { name: "Tol Dagor", mapping: '托達戈爾' },
+        { name: "Waycrest Manor", mapping: '威奎斯特莊園' }
+    ];
+    $(function() {
+        $.blockUI({ message: '<h1>讀取中...</h1>' });
+        $.ajaxSettings.async = false
+        getUser();
+    });
+
+    function getData(users) {
+        var list, tmplist = [];
+        users.forEach(function(items) {
+            var name = encodeURI(items.name);
+            var nickname = items.name;
+            var fields = encodeURI('gear,guild,mythic_plus_recent_runs');
+            var realm = items.realm;
+
+            var url_format = 'https://raider.io/api/v1/characters/profile?region=tw&realm={2}&name={0}&fields={1}'
+            var url = String.format(url_format, name, fields, realm)
+            $.ajaxSettings.async = false
+            $.getJSON(url, function(data) {
+                var difftime = data.mythic_plus_recent_runs.length > 0 ? getDiffHours(new Date(data.mythic_plus_recent_runs[0].completed_at).getTime()) : 'none';
+                var dungeon = data.mythic_plus_recent_runs.length > 0 ? data.mythic_plus_recent_runs[0].dungeon : '';
+                var mapdungeon = Dungeons.filter(x => x.name == dungeon).length > 0 ? Dungeons.filter(x => x.name == dungeon)[0].mapping : '';
+                var targetUrl = data.profile_url;
+                var tmpobj = {
+                    Name: String.format('<a href="{2}" target="_blank"> {0}-{1} </a>', nickname, data.realm, targetUrl),
+                    Last: String.format('{0} Days ago, {1}', difftime, mapdungeon),
+                    Pic: String.format('<img src ={0} />', data.thumbnail_url),
+                    iLv: data.gear.item_level_equipped,
+                };
+                tmplist.push(tmpobj);
+            });
+
+        });
+
+        var dt = $('#tb').DataTable({
+            responsive: {
+                details: {
+                    display: $.fn.dataTable.Responsive.display.childRowImmediate,
+                    type: 'none',
+                    target: ''
+                }
+            },
+            "data": tmplist,
+            "iDisplayLength": 10,
+            columns: [
+                { "data": "Pic" },
+                { "data": "Name" },
+                { "data": "iLv" },
+                { "data": "Last" }
+            ]
+        });
+
+        $('.dataTables_length').hide();
+        $('.dataTables_info').hide();
+        $("th").removeClass("sorting");
+        $("th").removeClass("sorting_asc");
+        $("th").removeClass("sorting_desc");
+        //responsiveToggle(dt)
+        $.unblockUI();
+        $.ajaxSettings.async = true
+    }
+
+    function getUser() {
+        $.getJSON('JSON/user.json', function(data) {
+            getData(data);
+        });
+
+    }
+
+    function getDiffHours(target) {
+        var now = new Date();
+        var nowUtc = new Date(now.getTime() + (now.getTimezoneOffset() * 60000)).getTime();
+        var diffHour = new Date(nowUtc - target).getUTCDate()
+        return diffHour;
+    }
+
+    function responsiveToggle(dt) {
+        $(dt.table().header()).find('th').toggleClass('all');
+        dt.responsive.rebuild();
+        dt.responsive.recalc();
+    }
+
+    String.format = function(src) {
+        if (arguments.length == 0) return null;
+        var args = Array.prototype.slice.call(arguments, 1);
+        return src.replace(/\{(\d+)\}/g, function(m, i) {
+            return args[i];
+        });
+    };
+    </script>
+</body>
+
+</html>
